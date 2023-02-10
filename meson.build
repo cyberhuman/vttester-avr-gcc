@@ -14,6 +14,20 @@ hex = custom_target(
   output : 'firmware.hex',
   command : [ avr_objcopy, '-j', '.text', '-j', '.data', '-O', 'ihex', '@INPUT@', '@OUTPUT@' ],
   build_by_default : true)
+eep = custom_target(
+  'firmware EEP',
+  input : exe,
+  output : 'firmware.eep',
+  command : [
+    avr_objcopy,
+    '--set-start', '0',
+    '--change-section-lma', '.eeprom=0',
+    '--set-section-flags', '.eeprom=alloc,load',
+    '-j', '.eeprom',
+    '-O', 'ihex',
+    '@INPUT@', '@OUTPUT@'
+    ],
+  build_by_default : true)
 
 avrdude = find_program('avrdude')
 
