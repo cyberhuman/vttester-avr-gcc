@@ -1,0 +1,54 @@
+wersja data        opis zmian
+
+1.00   02/02/2009  zaprogramowano procesory ATmega16
+
+1.01   03/02/2009  zmiany kosmetyczne w katalogu sta³ym: zamiana " " na "_"
+
+1.02   12/02/2009  dodano obs³ugê czujnika temperatury LM35 
+
+1.03   13/02/2009  zmiana dUa z +/-5V na +/-10V i w zwi¹zku z tym:
+                   zmiana Ua z 295V na 290V w katalogu sta³ym
+                   zmiana Ua z 5V na 10V w katalogu zmiennym
+
+1.04   17/02/2009  zmiana nazwy z 6S19S na 6S19P w katalogu sta³ym
+                   przyspieszono prze³¹czanie zakresów Ia
+                   zmiana progów prze³¹czania zakresu Ia na 17/18mA
+                   przyspieszono dzia³anie ograniczeñ nadpr¹dowych Ia/Ig2
+                   zmiana ograniczeñ nadpr¹dowych: Ia=190mA, Ig2=19mA, Ih=3800mA
+                   zmiana Uh z 6.3V na 12.6V dla ECC832
+
+1.05   05/03/2009  skrócono katalog sta³y do 80 lamp
+                   przeniesiono ostatnich 20 lamp z katalogu sta³ego do definiowanego
+                   dodano wyœwietlanie litery wskazuj¹cej przyczynê awaryjnego wy³¹czenia
+                   dodano sygna³ dŸwiêkowy przy za³¹czeniu i na zakoñczenie pomiaru
+
+1.06   07/03/2009  zmieniono kolejnoœæ za³¹czania/wy³¹czania H i G1
+                   umo¿liwiono szybk¹ zmianê mierzonej po³ówki w lampach podwójnych
+
+1.07   08/03/2009  dodano zerowanie S,R,K po zmianie po³ówki mierzonej lampy
+                   dodano stoper odliczaj¹cy czas do koñca pomiaru
+
+1.08   10/03/2009  dodano 3-krotne próbkowanie przed alarmem od IH
+
+1.09   13/03/2009  zablokowano przerwanie pomiaru przy pokrêceniu ga³ki z wciœnietym dusiem
+                   dodano zerowanie Ua,Ia,Ug2,Ig2 po zmianie po³ówki mierzonej lampy
+                   dodano miganie numeru po³ówki lampy przy zamro¿onym wyœwietlaczu
+
+1.10   13/03/2009  dodano 3-krotne próbkowanie przed alarmem od IA i IG2
+
+1.11   14/03/2009  zmieniono warunek migania nr po³ówki lampy (wy³¹czenie w trybie zasilacza)
+
+1.12   15/03/2009  zarezerwowano do przysz³ych zastosowañ pozycjê nr 1
+                   zmieniono nazwê 6N13S na 6AS7
+                   zmieniono nazwê 6P3C na 6L6
+                   6S2S przeniesiono do katalogu sta³ego
+                   6N15S przeniesiono do katalogu zmiennego
+
+1.13   25/03/2009  zmieniono dane lamp PCL86 i ECL86 w katalogu sta³ym
+
+1.14   01/05/2009  zmieniono ¿arzenie lamp ECC801/802/803 na 12.6V w katalogu sta³ym
+                   zmieniono zakres Ig2 z 20mA na 40mA (wymaga zmniejszenia boczników o po³owê!)
+
+1.15   13/01/2010  poprawiono definicjê pinów portu I2C
+
+1.16   23/02/2012  dodano lampê 6F6S

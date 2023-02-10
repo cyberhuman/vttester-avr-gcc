@@ -1,0 +1,8 @@
+Paczka z oprogramowaniem:
+-program zrodlowy (pod kompilator ICCAVR 6.31 Pro);
+-plik hex do zaprogramowania pamieci FLASH;
+-plik eep do zaprogramowania pamieci EEPROM;
+-instrukcja obslugi miernika z katalogiem lamp;
+-historia zmian w programie.
+
+Pelna dokumentacja miernika znajduje sie w Elektronice Praktycznej 4 i 5/2010 i plycie CD dolaczonej do EP 6/2010.
