@@ -1,5 +1,14 @@
 # Initial configuration
 
+## Install the build environment
+
+You'll need the avr-gcc compiler, the standard AVR C library and the build system (meson & ninja)
+
+### Arch Linux
+```sh
+# pacman -S avr-gcc avr-libc meson ninja
+```
+
 ## Set up build directories for required chip(s)
 
 ### ATmega16
