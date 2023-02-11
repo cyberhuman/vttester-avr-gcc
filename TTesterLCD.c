@@ -12,6 +12,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
+#include <avr/pgmspace.h>
 
 #define EEPROM_READ(addr, var) eeprom_read_block((void*)&var, addr, sizeof(var))
 #define EEPROM_WRITE(addr, val) eeprom_write_block((const void*)&val, addr, sizeof(val))
@@ -149,8 +150,10 @@ volatile unsigned int
     s, r, k,
     uhlcd, ihlcd, ug1lcd, ualcd, ialcd, ug2lcd, ig2lcd, slcd, rlcd, klcd;
 
+volatile unsigned int *wart;
+
 unsigned int
-    *wart, wartmin, wartmax,
+    wartmin, wartmax,
     adcih, adcia, adcig2,
     suhadc, sihadc, sug1adc, suaadc, siaadc, sug2adc, sig2adc,
     ual, uar,
@@ -161,15 +164,15 @@ unsigned int
 unsigned long
    lint, tint, licz, temp;
 
-katalog
+volatile katalog
    lamptem;
 
 const unsigned char
-   AZ[37] =
+   AZ[37] __ATTR_PROGMEM__ =
 { 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','_','0','1','2','3','4','5','6','7','8','9' };
 //00  01  02  03  04  05  06  07  08  09  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36
 const katalog
-   lamprom[FLAMP] =
+   lamprom[FLAMP] __ATTR_PROGMEM__ =
 {
 {{'P','w','r','S','u','p','p','l','y' },  0,  0,240,  0,   0,  0,   0,  0,  0,  0 },
 {{'F','o','r','F','u','t','U','s','e' },  0,  0,240,  0,   0,  0,   0,  0,  0,  0 },
@@ -255,11 +258,11 @@ const katalog
 };
 //  nazwa            cokol anoda czas uh  ih ug1  ua   ia ug2  ig2   S   R   K
 
-EEMEM unsigned int
-   poptyp = 0;
+unsigned int
+   poptyp EEMEM = 0;
 
-EEMEM katalog
-   lampeep[ELAMP] =
+katalog
+   lampeep[ELAMP] EEMEM =
 {
 {{ 33, 13, 28, 32, 18, 26,  9, 28, 28 }, 63,  0, 90,100,  90,  0,   0, 56,  0,  0 },
 {{ 33, 13, 28, 32, 18, 26,  9, 29, 28 }, 63,  0, 90,100,  90,  0,   0, 56,  0,  0 },
@@ -293,15 +296,9 @@ void char2rs(unsigned char bajt)
    while( busy );          // czekaj na koniec wysylania bajtu
 }
 
-void cstr2rs( const char* q )
+void cstr2rs( const char* s )
 {
-   while( *q )                             // do konca stringu
-   {
-      UDR = *q;
-      q++;
-      busy = 1;
-      while(busy);         // czekaj na koniec wysylania bajtu
-   }
+   for( char c; (c = pgm_read_byte(s)); s++ ) { char2rs(c); }
 }
 
 void delay( unsigned char opoz )            // opoznienie *1ms
@@ -907,9 +904,9 @@ void char2lcd( char f, char c )
    cmd2lcd( 1, ( (f == 1) && (takt == 0) )? ' ': c );
 }
 
-void cstr2lcd( char f, const char* c )
+void cstr2lcd( char f, const char* s )
 {
-   while( *c ) { char2lcd( f, *c ); c++; }
+   for( char c; (c = pgm_read_byte(s)); s++ ) { char2lcd( f, c ); }
 }
 
 void str2lcd( char f, char* c )
@@ -933,6 +930,27 @@ void int2asc( unsigned int liczba )
 //*************************************************************
 //      Program glowny
 //*************************************************************
+
+const char cstr_greeting0[]        __ATTR_PROGMEM__ = "VTTester 1.16";
+const char cstr_greeting1[]        __ATTR_PROGMEM__ = "Adam   Tomasz";
+const char cstr_greeting2[]        __ATTR_PROGMEM__ = "Tatus   Gumny";
+const char cstr_greeting3[]        __ATTR_PROGMEM__ = "Raman Varabets";
+
+const char cstr_screen0[]          __ATTR_PROGMEM__ = "             G     V";
+const char cstr_screen1[]          __ATTR_PROGMEM__ = "H=    V A=    G2=   ";
+const char cstr_screen2[]          __ATTR_PROGMEM__ = "      mA            ";
+
+const char cstr_s_equals[]         __ATTR_PROGMEM__ = "S=";
+const char cstr_space_r_equals[]   __ATTR_PROGMEM__ = " R=";
+const char cstr_space_k_equals[]   __ATTR_PROGMEM__ = " K=";
+const char cstr_space_t_equals[]   __ATTR_PROGMEM__ = " T=";
+
+const char cstr_overheat_warning[] __ATTR_PROGMEM__ = "* OVERHEAT Warning *";
+
+const char cstr_prompt[] __ATTR_PROGMEM__ =
+  "\r\nPress <ESC> to get LCD copy\r\nNr Type Uh[V] Ih[mA] -Ug[V] Ua[V] Ia[mA] Ug2[V] Ig2[mA] S[mA/V] R[k] K[V/V]";
+const char cstr_crlf[]             __ATTR_PROGMEM__ = "\r\n";
+const char cstr_two_spaces[]       __ATTR_PROGMEM__ = "  ";
 
 int main(void)
 {
@@ -1014,14 +1032,15 @@ int main(void)
    cmd2lcd( 0, 0x01 );
    cmd2lcd( 0, 0x40 );
 
-   gotoxy( 4, 0 ); cstr2lcd( 0, "VTTester 1.16" );
-   gotoxy( 4, 2 ); cstr2lcd( 0, "Adam   Tomasz" );
-   gotoxy( 4, 3 ); cstr2lcd( 0, "Tatus   Gumny" );
+   gotoxy( 4, 0 ); cstr2lcd( 0, cstr_greeting0 );
+   gotoxy( 4, 1 ); cstr2lcd( 0, cstr_greeting1 );
+   gotoxy( 4, 2 ); cstr2lcd( 0, cstr_greeting2 );
+   gotoxy( 4, 3 ); cstr2lcd( 0, cstr_greeting3 );
    for( i = 0; i < 20; i++ ) { WDR; if( i == 19 ) { SPKON; } delay( 100 ); SPKOFF; };
 
-   gotoxy( 0, 0 ); cstr2lcd( 0, "             G     V" );
-   gotoxy( 0, 1 ); cstr2lcd( 0, "H=    V A=    G2=   " );
-   gotoxy( 0, 2 ); cstr2lcd( 0, "      mA            " );
+   gotoxy( 0, 0 ); cstr2lcd( 0, cstr_screen0 );
+   gotoxy( 0, 1 ); cstr2lcd( 0, cstr_screen1 );
+   gotoxy( 0, 2 ); cstr2lcd( 0, cstr_screen2 );
 
 // 01234567890123456789
 // ====================
@@ -1031,7 +1050,7 @@ int main(void)
 // S=99.9 u=99.9 R=99.9
 // ====================
 
-   cstr2rs( "\r\nPress <ESC> to get LCD copy\r\nNr Type Uh[V] Ih[mA] -Ug[V] Ua[V] Ia[mA] Ug2[V] Ig2[mA] S[mA/V] R[k] K[V/V]" );
+   cstr2rs( cstr_prompt );
 
 //***** Glowna petla programu *********************************
 
@@ -1083,22 +1102,22 @@ int main(void)
          if( typ > 1 )
 			{
             gotoxy( 0, 3 );
-		      cstr2lcd( 0, "S=" );
+		      cstr2lcd( 0, cstr_s_equals );
 		      str2lcd( (adr == 17), &buf[48] );                 // S
 
             gotoxy( 6, 3 );
-		      cstr2lcd( 0, " R=" );
+		      cstr2lcd( 0, cstr_space_r_equals );
 		      str2lcd( (adr == 18), &buf[53] );                 // R
 
             gotoxy( 13, 3 );
 				if( (start <= (FUH+2)) || (dusk0 == DMAX) )
 				{
-		         cstr2lcd( 0, " K=" );
+		         cstr2lcd( 0, cstr_space_k_equals );
 		         str2lcd( (adr == 19), &buf[58] );                 // K
             }
 				else
 				{
-  		         cstr2lcd( 0, " T=" );
+  		         cstr2lcd( 0, cstr_space_t_equals );
                int2asc( start >> 2 );
 					
 			      if( ascii[2] != '0' )
@@ -1124,7 +1143,7 @@ int main(void)
 			}
 			else
 			{
-				cstr2lcd( 0, "* OVERHEAT Warning *" );
+				cstr2lcd( 0, cstr_overheat_warning );
 			}
       }
       GICR = BIT(INT1);                             // wlacz INT1
@@ -1139,7 +1158,7 @@ int main(void)
 //***** Pobieranie nowej Nazwy ************************************
          if( typ < FLAMP )
      	   {
-     	      lamptem = lamprom[typ];
+            memcpy_P((void*)&lamptem, &lamprom[typ], sizeof(katalog));
 		   	tuh = (lamptem.nazwa[8] - '0') * 240;    // 240 = 1min
      	   	for( i = 0; i < 9; i++ ) buf[i+3] = (unsigned char)lamptem.nazwa[i];
   	   	}
@@ -1147,7 +1166,7 @@ int main(void)
   		   {
             EEPROM_READ(&lampeep[typ-FLAMP], lamptem);
 	   	   tuh = (lamptem.nazwa[8] - 27) * 240;     // 240 = 1min
-     		 	for( i = 0; i < 9; i++ ) buf[i+3] = AZ[(unsigned char)lamptem.nazwa[i]];
+     		 	for( i = 0; i < 9; i++ ) buf[i+3] = pgm_read_byte(&AZ[(unsigned char)lamptem.nazwa[i]]);
          }
 			nowa = 1;                     // zaktualizowano nazwe
 		}
@@ -1157,7 +1176,7 @@ int main(void)
       {
 //***** Wyswietlanie edytowanej Nazwy *************************
   			if( czytaj == 1 ) EEPROM_READ(&lampeep[typ-FLAMP].nazwa, lamptem.nazwa);
-			for( i = 0; i < 9; i++ ) buf[3+i] = AZ[(unsigned char)lamptem.nazwa[i]];
+			for( i = 0; i < 9; i++ ) buf[3+i] = pgm_read_byte(&AZ[(unsigned char)lamptem.nazwa[i]]);
 			czytaj = 0;
 		   if( dusk0 == DMAX ) zapisz = 1;
 		   if( (nodus == DMIN) && (zapisz == 1) )
@@ -1541,10 +1560,10 @@ int main(void)
       if( txen )
       {
 		   EEPROM_WRITE(&poptyp, typ);
-		   cstr2rs( "\r\n" );
+		   cstr2rs( cstr_crlf );
 		   for( i = 0; i < 62; i++ )
 			{
-            if( buf[i] != '\0' ) char2rs( buf[i] ); else cstr2rs( "  " );
+            if( buf[i] != '\0' ) char2rs( buf[i] ); else cstr2rs( cstr_two_spaces );
 			}
          txen = 0;
       }
