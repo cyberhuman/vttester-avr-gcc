@@ -13,8 +13,8 @@
 #include <avr/interrupt.h>
 #include <avr/eeprom.h>
 
-#define EEPROM_READ(addr, var) eeprom_read_block(&var, addr, sizeof(var))
-#define EEPROM_WRITE(addr, val) eeprom_write_block(&val, addr, sizeof(val))
+#define EEPROM_READ(addr, var) eeprom_read_block((void*)&var, addr, sizeof(var))
+#define EEPROM_WRITE(addr, val) eeprom_write_block((const void*)&val, addr, sizeof(val))
 
 #define BIT(x)  (1<<(x))
 #define LOW(x)  ((char)((int)(x)))
@@ -109,45 +109,54 @@ typedef struct
    unsigned int  kdef;
 } katalog;
 
-unsigned char
-   d, i,
+volatile unsigned char
    busy,
-	sync,
+   sync,
    txen,
    *cwart, cwartmin, cwartmax,
-   adr, adrmin, adrmax,
+   adr,
    typ, nowa,
-	stop,
+   stop,
    zwloka,
-	dziel,
    nodus, dusk0,
-	zapisz, czytaj,
-   range, rangelcd, rangedef,
+   range, rangelcd,
+   takt,
+   err;
+
+unsigned char
+   i,
+   dziel,
+   zapisz, czytaj,
+   rangedef,
    ascii[5],
    kanal,
-   takt,
-	overih, overia, overig2, err, errcode,
+   overih, overia, overig2, errcode,
    probki,
    pwm;
 char buf[63];
 
+volatile unsigned int
+    start, tuh,
+    vref,
+    uhset,  ihset,  ug1set,  uaset,  _iaset,  ug2set, _ig2set,
+    muhadc, mihadc, mug1adc, muaadc, miaadc, mug2adc, mig2adc,
+    ug1zer, ug1ref,
+    uh, ih,
+    ua,
+    ia,
+    ug2, ig2,
+    ug1,
+    s, r, k,
+    uhlcd, ihlcd, ug1lcd, ualcd, ialcd, ug2lcd, ig2lcd, slcd, rlcd, klcd;
+
 unsigned int
-   *wart, wartmin, wartmax,
-	start, tuh,
-   vref,
-	adcih, adcia, adcig2,
-   uhset,  ihset,  ug1set,  uaset,  iaset,  ug2set,	ig2set,
-	suhadc, sihadc, sug1adc, suaadc, siaadc, sug2adc, sig2adc,
-   muhadc, mihadc, mug1adc, muaadc, miaadc, mug2adc, mig2adc,
-   ug1zer, ug1ref,
-	uh, ih,
-	ua, ual, uar,
-	ia, ial, iar,
-	ug2, ig2,
-	ug1, ugl, ugr,
-	s, r, k,
-	uhlcd, ihlcd, ug1lcd, ualcd, ialcd, ug2lcd, ig2lcd, slcd, rlcd, klcd,
-	srezadc, mrezadc;
+    *wart, wartmin, wartmax,
+    adcih, adcia, adcig2,
+    suhadc, sihadc, sug1adc, suaadc, siaadc, sug2adc, sig2adc,
+    ual, uar,
+    ial, iar,
+    ugl, ugr,
+    srezadc, mrezadc;
 
 unsigned long
    lint, tint, licz, temp;
