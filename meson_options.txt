@@ -1,0 +1,2 @@
+option('vref_voltage', type: 'integer', value: 4096, description: 'VREF voltage in millivolts (e.g., 4096 for 4.096V)')
+option('vref_scale', type: 'integer', value: 1000, description: 'VREF scaling factor (e.g., 1000 for 0.001V resolution)')

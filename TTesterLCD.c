@@ -59,7 +59,6 @@
 #define MRUG    250                      // taktowanie migania
 #define DMIN    20                          // czas drgan 20ms
 #define DMAX    250                        // czas drgan 250ms
-#define LPROB   63            // liczba usrednianych probek 64
 
 #define HITEMP  10240         // 80"C = 0.8V/5.12V * 1024 * 64
 #define LOTEMP  8960          // 70"C = 0.7V/5.12V * 1024 * 64
@@ -94,6 +93,38 @@
 #define FUG     2
 #define FUH     2
 #define BIP     4
+
+// VREF Configuration
+#ifndef VREF_VOLTAGE
+  #define VREF_VOLTAGE  4096                     // Vref voltage in millivolts (4.096V)
+  #define VREF_SCALE    1000                     // Scaling factor (1000 for 0.001V resolution)
+#else
+  #ifndef VREF_SCALE
+    #error "if VREF_VOLTAGE is defined, VREF_SCALE must be defined as well"
+  #endif
+#endif
+
+// Hardware configuration constants
+#define ADC_SAMPLES     64                      // Number of averaged ADC samples (64)
+#define ADC_MAX_VALUE   1024UL                   // Maximum ADC value (10-bit)
+#define ADC_SCALE_FACTOR (ADC_SAMPLES * ADC_MAX_VALUE)  // Combined ADC scaling factor (65536)
+#define VDIV_RATIO      76                     // High voltage divider ratio for Ua/Ug2
+#define VDIV_R1         11200UL                  // Voltage divider bottom resistor 1
+#define VDIV_R2         11200UL                  // Voltage divider bottom resistor 2
+#define VDIV_R_PARALLEL (VDIV_R1 * VDIV_R2 / (VDIV_R1 + VDIV_R2))  // Parallel resistance of voltage divider bottom
+
+// Calculated scaling constants based on hardware and VREF configuration
+#define HV_SCALE_DIV    (ADC_SCALE_FACTOR * VREF_SCALE / VDIV_RATIO)  // High voltage (Ua, Ug2) scaling divisor
+#define CURR_SCALE_DIV  (ADC_SCALE_FACTOR * VDIV_R_PARALLEL * VREF_SCALE / 100)  // Current (Ia, Ig2) scaling divisor
+
+// Sanity check: Ensure the voltage divider ratio is enough (must be below VREF for 310V input)
+#if (310L * VREF_SCALE / VDIV_RATIO) > VREF_VOLTAGE
+  #error "High voltage measurement range too low! Increase VREF_VOLTAGE, VDIV_RATIO, or decrease VREF_SCALE."
+#endif
+
+#if VREF_SCALE == 1000 && VREF_VOLTAGE >= 6553
+  #error "VREF is too high and will overflow calculations!"
+#endif
 
 typedef struct
 {
@@ -138,7 +169,6 @@ char buf[63];
 
 volatile unsigned int
     start, tuh,
-    vref,
     uhset,  ihset,  ug1set,  uaset,  _iaset,  ug2set, _ig2set,
     muhadc, mihadc, mug1adc, muaadc, miaadc, mug2adc, mig2adc,
     ug1zer, ug1ref,
@@ -322,14 +352,16 @@ void zersrk( void )                         // zeruj S, R, K
 
 unsigned int liczug1( unsigned int pug1 )                // przelicz Ug1
 {
-   licz = 640000;
-   licz *= vref;
-	temp = 1024000;
-	temp *= pug1;                                   // ug1
-	licz -= temp;
-   licz /= 725;
-	licz /= vref;
-   return( (unsigned int)licz );       // 882..193..55
+  // ADC = ADC_MAX_VALUE * (R2/(R1+R2)*VREF - R1/(R1+R2)*UG1) / VREF
+  // ADC = (ADC_MAX_VALUE*R2/R1*VREF - ADC_MAX_VALUE*UG1) / ((R1+R2)/R1) / VREF
+  licz = ADC_MAX_VALUE * 625;
+  licz *= VREF_VOLTAGE;
+  temp = ADC_MAX_VALUE * 100 * (VREF_SCALE / 10); // Vdiv scale 7.25 => 725, UG scale 24.0=>240
+  temp *= pug1;
+  licz -= temp;
+  licz /= 725;
+  licz /= VREF_VOLTAGE;
+  return( (unsigned int)licz );       // 882..193..55
 }
 
 //*************************************************************************
@@ -697,7 +729,7 @@ ISR(ADC_vect)
 			kanal = 0;
 	      if( ADC >= ug1set ) { CLKUG1RST; }
          ADMUX = ADRUG1;
-      	if( probki == LPROB )
+      	if( ++probki == ADC_SAMPLES )
 	      {
 	         mrezadc = srezadc;
    	      mihadc = sihadc;
@@ -719,11 +751,11 @@ ISR(ADC_vect)
                if( uhset > 0 )
                {
                   lint = muhadc;
-	            	lint *= vref;
+	            	lint *= VREF_VOLTAGE;
       		      lint >>= 14;        //  /= 16384;                // 0..200
                   tint = mihadc;   // poprawka na spadek napiecia na boczniku
-            		tint *= vref;
-            		tint >>= 16;        //  /= 65536;
+            		tint *= VREF_VOLTAGE;
+            		tint >>= 16;        //  /= 65536; ADC_SCALE_FACTOR
             		if( lint > tint ) { lint -= tint; } else { lint = 0; }
             		lint /= 10;
                   if( (uhset > (unsigned int)lint) && (pwm < 255) ) { pwm++; }
@@ -733,7 +765,7 @@ ISR(ADC_vect)
                if( ihset > 0 )
   	            {
                   lint = mihadc;
-    		         lint *= vref;
+    		         lint *= VREF_VOLTAGE;
    			      lint >>= 15;    //   /= 32768;
                   if( (ihset > (unsigned int)lint) )
 						{
@@ -754,10 +786,6 @@ ISR(ADC_vect)
 //***** Ustawianie/kasowanie znacznika przegrzania ************
             if( mrezadc > HITEMP ) err |= OVERTE;
             if( mrezadc < LOTEMP ) err &= ~OVERTE;
-         }
-	      else
-   	   {
-	         probki++;
       	}
 		   break;
 		}
@@ -1018,8 +1046,7 @@ int main(void)
 
 //***** Inicjalizacja zmiennych *******************************
 
-   vref = 509;                                  // vref >= 480
-   TOPPWM = 61 * vref / 100;             // okres PWM Ua i Ug2
+   TOPPWM = (unsigned long)VDIV_RATIO * VREF_VOLTAGE / VREF_SCALE;   // okres PWM Ua i Ug2
 
    ug1set = ug1zer = ug1ref = liczug1( 240 );;    // -24.0V
    lamptem.ug1def = 240;
@@ -1206,14 +1233,17 @@ int main(void)
 //***** Ustawianie Ug1 ****************************************
 
       ug1ref = liczug1( lamptem.ug1def );               // przelicz Ug1
-		
+
+      // ADC = ADC_MAX_VALUE * (R2/(R1+R2)*VREF - R1/(R1+R2)*UG1) / VREF
+      // ADC = (ADC_MAX_VALUE*R2/R1*VREF - ADC_MAX_VALUE*UG1) / ((R1+R2)/R1) / VREF
+      // UG1 = (R2/R1*ADC_SCALE_FACTOR - ADC_SAMPLES*ADC*((R1+R2)/R1))/ADC_SCALE_FACTOR * VREF
 		temp = mug1adc;
 		temp *= 725;
-		licz = 40960000;
+		licz = 625 * ADC_SCALE_FACTOR;
 		if( licz > temp ) { licz -= temp; } else licz = 0;
-      licz >>= 16;     //   /= 65536;
-		licz *= vref;
-		licz /= 1000;
+      licz >>= 16;     //   /= 65536; ADC_SCALE_FACTOR
+		licz *= VREF_VOLTAGE;
+		licz /= 100 * (VREF_SCALE / 10);
 		ug1 = (unsigned int)licz;
       if( start == (FUH+2) ) licz = ug1lcd;
       if( (adr == 0) || (adr == 10) )
@@ -1244,13 +1274,14 @@ int main(void)
       buf[26] = ascii[0];
 //***** Ustawianie Uh *****************************************
       licz = muhadc;
-		licz *= vref;
+		licz *= VREF_VOLTAGE;
 		licz >>= 14;   //  /= 16384;                      // 0..200
       temp = mihadc;   // poprawka na spadek napiecia na boczniku
-		temp *= vref;
-		temp >>= 16;         //    /= 65536;
+		temp *= VREF_VOLTAGE;
+		temp >>= 16;         //    /= 65536; ADC_SCALE_FACTOR
 		if( licz > temp ) { licz -= temp; } else licz = 0;
-		licz /= 10;
+		licz *= 10;
+      licz /= VREF_SCALE;
 		uh = (unsigned int)licz;
       if( start == (FUH+2) ) licz = uhlcd;
       if( (adr == 0) || (adr == 11) )
@@ -1282,7 +1313,7 @@ int main(void)
       buf[16] = ascii[0];
 //***** Ustawianie Ih *****************************************
       licz = mihadc;
-		licz *= vref;
+		licz *= VREF_VOLTAGE;
 		licz >>= 15;    //   /= 32768;                  // 0..250
 		ih = (unsigned int)licz;
       if( start == (FUH+2) ) licz = ihlcd;
@@ -1332,8 +1363,8 @@ int main(void)
       buf[21] = '0';
 //***** Ustawianie Ua *****************************************
       licz = muaadc;
-		licz *= vref;
-		licz /= 107436;
+		licz *= VREF_VOLTAGE;
+		licz /= HV_SCALE_DIV;
 		ua = (unsigned int)licz;
       if( start == (FUH+2) ) licz = ualcd;
       if( (adr == 0) || (adr == 13) )
@@ -1371,12 +1402,12 @@ int main(void)
       buf[30] = ascii[0];
 //***** Ustawianie Ia ***************************************
 	   licz = miaadc;
-		licz *= vref;
+		licz *= VREF_VOLTAGE;
 		licz >>= 14;       //    /= 16384;
       temp = muaadc;
-		temp *= vref;
+		temp *= VREF_VOLTAGE;
 		if( range == 0 ) { temp *= 10; }
-		temp /= 4369064;
+		temp /= CURR_SCALE_DIV;
       if( licz > temp ) { licz -= temp; } else licz = 0;
 		ia = (unsigned int)licz;
       if( start == (FUH+2) ) licz = ialcd;
@@ -1426,8 +1457,8 @@ int main(void)
       }
 //***** Ustawianie Ug2 ****************************************
       licz = mug2adc;
-		licz *= vref;
-		licz /= 107436;
+		licz *= VREF_VOLTAGE;
+		licz /= HV_SCALE_DIV;
 		ug2 = (unsigned int)licz;
       if( start == (FUH+2) ) licz = ug2lcd;
       if( (adr == 0) || (adr == 15) )
@@ -1465,12 +1496,12 @@ int main(void)
       buf[40] = ascii[0];
 //***** Ustawianie Ig2 **************************************
 	   licz = mig2adc;
-		licz *= vref;
+		licz *= VREF_VOLTAGE;
 		licz >>= 13;   //  /8192(40mA)  /16384(20mA);
       temp = mug2adc;
-		temp *= vref;
+		temp *= VREF_VOLTAGE;
 		temp *= 10;
-		temp /= 4369064;
+		temp /= CURR_SCALE_DIV;
       if( licz > temp ) { licz -= temp; } else licz = 0;
 		ig2 = (unsigned int)licz;
       if( start == (FUH+2) ) licz = ig2lcd;

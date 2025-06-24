@@ -1,11 +1,18 @@
 project('ttester', 'c')
 
+# Get VREF configuration from meson options
+vref_voltage = get_option('vref_voltage').to_string()
+vref_scale = get_option('vref_scale').to_string()
+
 add_global_arguments([
   '-Werror',
   ],
   language : [ 'c', 'cpp' ])
 
-exe = executable('ttester', 'TTesterLCD.c')
+exe = executable('ttester', 'TTesterLCD.c', c_args: [
+  '-DVREF_VOLTAGE=' + vref_voltage,
+  '-DVREF_SCALE=' + vref_scale,
+])
 
 avr_objcopy = find_program('avr-objcopy')
 hex = custom_target(
