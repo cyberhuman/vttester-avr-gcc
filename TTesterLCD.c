@@ -115,7 +115,9 @@
 
 // Calculated scaling constants based on hardware and VREF configuration
 #define HV_SCALE_DIV    (ADC_SCALE_FACTOR * VREF_SCALE / VDIV_RATIO)  // High voltage (Ua, Ug2) scaling divisor
-#define CURR_SCALE_DIV  (ADC_SCALE_FACTOR * VDIV_R_PARALLEL * VREF_SCALE / 100)  // Current (Ia, Ig2) scaling divisor
+// 64-bit intermediate avoids 32-bit overflow during constant folding; (unsigned long) narrows
+// the folded result back to 32 bits, so the runtime division stays 32-bit.
+#define CURR_SCALE_DIV  ((unsigned long)((unsigned long long)ADC_SCALE_FACTOR * VDIV_R_PARALLEL * VREF_SCALE / 100))  // Current (Ia, Ig2) scaling divisor
 
 // Sanity check: Ensure the voltage divider ratio is enough (must be below VREF for 310V input)
 #if (310L * VREF_SCALE / VDIV_RATIO) > VREF_VOLTAGE
@@ -757,7 +759,7 @@ ISR(ADC_vect)
             		tint *= VREF_VOLTAGE;
             		tint >>= 16;        //  /= 65536; ADC_SCALE_FACTOR
             		if( lint > tint ) { lint -= tint; } else { lint = 0; }
-            		lint /= 10;
+            		lint *= 10; lint /= VREF_SCALE;   // jak w wyswietlaniu Uh: decywolty (uhset)
                   if( (uhset > (unsigned int)lint) && (pwm < 255) ) { pwm++; }
                   if( (uhset < (unsigned int)lint) && (pwm >   0) ) { pwm--; }
                }
