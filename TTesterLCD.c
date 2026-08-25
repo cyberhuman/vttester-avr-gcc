@@ -99,7 +99,7 @@ typedef struct
 {
    unsigned char nazwa[9];
    unsigned char uhdef;
-   unsigned char ihdef;
+   unsigned int  ihdef;
    unsigned char ug1def;
    unsigned int  uadef;
    unsigned int  iadef;
@@ -175,7 +175,7 @@ const katalog
    lamprom[FLAMP] __ATTR_PROGMEM__ =
 {
 { "PwrSupply",   0,  0,240,  0,   0,  0,   0,  0,  0,  0 },
-{ "ForFutUse",   0,  0,240,  0,   0,  0,   0,  0,  0,  0 },
+{ "6973__F01",  63,  0,150,250, 460,250, 350, 41,730,  0 },
 { "ECC81_G11", 126,  0, 20,250, 100,  0,   0, 55,110,600 },
 { "ECC81_G21", 126,  0, 20,250, 100,  0,   0, 55,110,600 },
 { "ECC82_G11", 126,  0, 85,250, 105,  0,   0, 22, 77,170 },
@@ -210,8 +210,8 @@ const katalog
 { "KT77__A05",  63,  0,150,250,1000,250,1000,105,230,115 },
 { "KT88__A05",  63,  0,150,250,1400,250, 700,115,120, 80 },
 { "6P1P__C02",  63,  0,125,250, 450,250, 700, 45,500,  0 },
-{ "EL90__F01",  63,  0,125,250, 450,250, 450, 41,520,  0 },
-{ "EL95__F01",  63,  0, 90,250, 240,250, 450, 50,800,170 },
+{ "EL90__J01",  63,  0,125,250, 450,250, 450, 41,520,  0 },
+{ "EL95__J01",  63,  0, 90,250, 240,250, 450, 50,800,170 },
 { "PCL86TJ12",   0, 30, 17,230,  12,  0,   0, 16,620,990 },
 { "PCL86PJ22",   0, 30, 57,230, 390,230, 650,105,450,999 },
 { "ECL86TJ12",  63,  0, 19,250,  12,  0,   0, 16,620,990 },
@@ -282,7 +282,7 @@ unsigned int
    poptyp EEMEM = 0;
 
 // Katalog EEPROM zajmuje cala wolna pamiec EEPROM danego procesora.
-// ATmega16A: (512-2)/26 = 19 pozycji,  ATmega32A: (1024-2)/26 = 39 pozycji.
+// ATmega16A: (512-2)/27 = 18 pozycji,  ATmega32A: (1024-2)/27 = 37 pozycji.
 #define ELAMP   ((unsigned char)((E2END + 1 - sizeof(poptyp)) / sizeof(katalog)))
 
 // Wszystkie pozycje EEPROM sa puste (do zdefiniowania przez uzytkownika):
@@ -415,9 +415,9 @@ ISR(INT1_vect)
             } 
             if( adr == 12 )                         // ustawianie Ih
             {
-               cwartmin = 0;
-		         cwartmax = 250;                     // 0..2.50A
-               cwart = &lamptem.ihdef;
+               wartmin = 0;
+		         wartmax = 350;                     // 0..3.50A
+               wart = &lamptem.ihdef;
             }
             if( adr == 13 )                         // ustawianie Ua
             {
@@ -464,7 +464,7 @@ ISR(INT1_vect)
 
             if( RIGHT )
             {
-               if( adr < 13 )
+               if( adr < 12 )
 		         {
                   if( dusk0 == DMAX )
                   {
@@ -491,7 +491,7 @@ ISR(INT1_vect)
             }
             else
             {
-      	      if( adr < 13 )
+      	      if( adr < 12 )
 		         {
                   if( dusk0 == DMAX )
       	   		{
@@ -855,7 +855,7 @@ ISR(TIMER2_COMP_vect)
       if( start == (    (                                   TMAR+TUA+TMAR+TUA+TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { ual = ua; ial = (range==0)?ia:ia*10; } // IaaL
       if( start == (    (                                        TUA+TMAR+TUA+TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { uaset = lamptem.uadef + 10; } // UaR
       if( start == (    (                                            TMAR+TUA+TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { uar = ua; iar = (range==0)?ia:ia*10; if( iar != ial ) { uar -= ual; uar *= 1000; iar -= ial; r = uar; r /= iar; } else r = 999; } // IaaR R
-      if( start == (    (                                                 TUA+TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { uaset = lamptem.uadef; lint = s; lint *= r; lint += 5; lint /= 10; if( lint < 999 ) { k = (unsigned int)lint; } else k = 999; } // K=R*S
+      if( start == (    (                                                 TUA+TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { uaset = lamptem.uadef; lint = s; lint *= r; lint += 5; lint /= 10; if( lint > 1000 ) lint /= 10; if( lint < 999 ) { k = (unsigned int)lint; } else k = 999; } // K=R*S, K>100 -> K/10
       if( start == (    (                                                     TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { uhlcd = uh; ihlcd = ih; ug1lcd = ug1; ualcd = ua; ialcd = ia; rangelcd = range; ug2lcd = ug2; ig2lcd = ig2; slcd = s; rlcd = r; klcd = k; txen = 1; }
       if( start == (    (                                                          FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { ug2set = 0; if( typ == 0 ) lamptem.ug2def = 0; }
       if( start == (    (                                                               FUA+FUG+(BIP-0)+FUH+2)) ) { uaset = 0; if( typ == 0 ) lamptem.uadef = 0; }
