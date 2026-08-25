@@ -793,7 +793,7 @@ ISR(TIMER2_COMP_vect)
 		{
 		   if( (dusk0 > DMIN) && (dusk0 < DMAX) )
 			{
-			   if( (typ > 1) && (err == 0) )
+			   if( (typ != 0) && (err == 0) )
 				{
    			   if( (start == 0) && (adr == 0) )   // start
 	   			{
@@ -855,7 +855,7 @@ ISR(TIMER2_COMP_vect)
       if( start == (    (                                   TMAR+TUA+TMAR+TUA+TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { ual = ua; ial = (range==0)?ia:ia*10; } // IaaL
       if( start == (    (                                        TUA+TMAR+TUA+TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { uaset = lamptem.uadef + 10; } // UaR
       if( start == (    (                                            TMAR+TUA+TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { uar = ua; iar = (range==0)?ia:ia*10; if( iar != ial ) { uar -= ual; uar *= 1000; iar -= ial; r = uar; r /= iar; } else r = 999; } // IaaR R
-      if( start == (    (                                                 TUA+TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { uaset = lamptem.uadef; lint = s; lint *= r; lint += 5; lint /= 10; if( lint > 1000 ) lint /= 10; if( lint < 999 ) { k = (unsigned int)lint; } else k = 999; } // K=R*S, K>100 -> K/10
+      if( start == (    (                                                 TUA+TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { uaset = lamptem.uadef; lint = s; lint *= r; lint += 5; lint /= 10; if( lint < 9990 ) { k = (unsigned int)lint; } else k = 9990; } // K=R*S, max 999.
       if( start == (    (                                                     TMAR+FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { uhlcd = uh; ihlcd = ih; ug1lcd = ug1; ualcd = ua; ialcd = ia; rangelcd = range; ug2lcd = ug2; ig2lcd = ig2; slcd = s; rlcd = r; klcd = k; txen = 1; }
       if( start == (    (                                                          FUG2+FUA+FUG+(BIP-0)+FUH+2)) ) { ug2set = 0; if( typ == 0 ) lamptem.ug2def = 0; }
       if( start == (    (                                                               FUA+FUG+(BIP-0)+FUH+2)) ) { uaset = 0; if( typ == 0 ) lamptem.uadef = 0; }
@@ -1107,7 +1107,7 @@ int main(void)
 		   str2lcd( (adr == 16), &buf[42] );                // Ig2
 
 		   gotoxy( 0, 3 );
-         if( typ > 1 )
+         if( typ != 0 )
 			{
             gotoxy( 0, 3 );
 		      cstr2lcd( 0, cstr_s_equals );
@@ -1568,10 +1568,20 @@ int main(void)
 		}
 //***** Wyswietlanie K ****************************************
       int2asc( licz );
-      buf[58] = (ascii[2] != '0')? ascii[2]: ' ';
-      buf[59] = ascii[1];
-      buf[60] = '.';
-      buf[61] = ascii[0];
+      if( licz > 999 )               // K>99.9: format "250." zamiast "25.0"
+      {
+         buf[58] = ascii[3];
+         buf[59] = ascii[2];
+         buf[60] = ascii[1];
+         buf[61] = '.';
+      }
+      else
+      {
+         buf[58] = (ascii[2] != '0')? ascii[2]: ' ';
+         buf[59] = ascii[1];
+         buf[60] = '.';
+         buf[61] = ascii[0];
+      }
 //***** Wyslanie pomiarow do PC *******************************
       if( txen )
       {
