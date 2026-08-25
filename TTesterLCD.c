@@ -99,7 +99,7 @@ typedef struct
 {
    unsigned char nazwa[9];
    unsigned char uhdef;
-   unsigned char ihdef;                       // *20mA
+   unsigned char ihdef;
    unsigned char ug1def;
    unsigned int  uadef;
    unsigned int  iadef;
@@ -109,6 +109,21 @@ typedef struct
    unsigned int  rdef;
    unsigned int  kdef;
 } katalog;
+
+typedef struct               // kopia robocza katalogu: ihdef 16-bit (do 350),
+{                            // w katalogu flash/EEPROM bajt (zapis: max 250)
+   unsigned char nazwa[9];
+   unsigned char uhdef;
+   unsigned int  ihdef;
+   unsigned char ug1def;
+   unsigned int  uadef;
+   unsigned int  iadef;
+   unsigned int  ug2def;
+   unsigned int  ig2def;
+   unsigned int  sdef;
+   unsigned int  rdef;
+   unsigned int  kdef;
+} katalogram;
 
 volatile unsigned char
    busy,
@@ -164,8 +179,11 @@ unsigned int
 unsigned long
    lint, tint, licz, temp;
 
-volatile katalog
+volatile katalogram
    lamptem;
+
+katalog
+   ktmp;              // bufor kopiowania katalog flash/EEPROM -> lamptem
 
 const unsigned char
    AZ[37] __ATTR_PROGMEM__ =
@@ -212,8 +230,8 @@ const katalog
 { "6P1P__C02",  63,  0,125,250, 450,250, 700, 45,500,  0 },
 { "EL90__J01",  63,  0,125,250, 450,250, 450, 41,520,  0 },
 { "EL95__J01",  63,  0, 90,250, 240,250, 450, 50,800,170 },
-{ "PCL86TJ12",   0, 15, 17,230,  12,  0,   0, 16,620,990 },
-{ "PCL86PJ22",   0, 15, 57,230, 390,230, 650,105,450,999 },
+{ "PCL86TJ12",   0, 30, 17,230,  12,  0,   0, 16,620,990 },
+{ "PCL86PJ22",   0, 30, 57,230, 390,230, 650,105,450,999 },
 { "ECL86TJ12",  63,  0, 19,250,  12,  0,   0, 16,620,990 },
 { "ECL86PJ22",  63,  0, 70,250, 360,250, 600,100,480,999 },
 { "ECL82TJ12",  63,  0,  5,100,  35,  0,   0, 22,  0,700 },
@@ -240,12 +258,12 @@ const katalog
 { "ECC803G21", 126,  0, 20,250,  12,  0,   0, 16,625,999 },
 { "ECC832G11", 126,  0, 85,250, 105,  0,   0, 22, 77,170 },
 { "ECC832G21", 126,  0, 20,250,  12,  0,   0, 16,625,999 },
-{ "PCC84_G11",   0, 15, 15, 90, 120,  0,   0, 60,  0,  0 },
-{ "PCC84_G21",   0, 15, 15, 90, 120,  0,   0, 60,  0,  0 },
-{ "PCC85_G11",   0, 15, 21,200, 100,  0,   0, 58,  0,  0 },
-{ "PCC85_G21",   0, 15, 21,200, 100,  0,   0, 58,  0,  0 },
-{ "PCC88_G11",   0, 15, 12, 90, 150,  0,   0,125,  0,  0 },
-{ "PCC88_G21",   0, 15, 12, 90, 150,  0,   0,125,  0,  0 },
+{ "PCC84_G11",   0, 30, 15, 90, 120,  0,   0, 60,  0,  0 },
+{ "PCC84_G21",   0, 30, 15, 90, 120,  0,   0, 60,  0,  0 },
+{ "PCC85_G11",   0, 30, 21,200, 100,  0,   0, 58,  0,  0 },
+{ "PCC85_G21",   0, 30, 21,200, 100,  0,   0, 58,  0,  0 },
+{ "PCC88_G11",   0, 30, 12, 90, 150,  0,   0,125,  0,  0 },
+{ "PCC88_G21",   0, 30, 12, 90, 150,  0,   0,125,  0,  0 },
 { "6SC7__J12",  63,  0, 20,250,  20,  0,   0, 13,  0,  0 },
 { "6SC7__J22",  63,  0, 20,250,  20,  0,   0, 13,  0,  0 },
 { "6N3P__J11",  63,  0, 20,150,  82,  0,   0, 56,  0,  0 },
@@ -318,6 +336,21 @@ void delay( unsigned char opoz )            // opoznienie *1ms
 void zersrk( void )                         // zeruj S, R, K
 {
 	s = r = k = ualcd = ialcd = ug2lcd = ig2lcd = slcd = rlcd = klcd = 0;
+}
+
+void kat2ram( void )                        // przepisz ktmp -> lamptem
+{
+   for( i = 0; i < 9; i++ ) lamptem.nazwa[i] = ktmp.nazwa[i];
+   lamptem.uhdef  = ktmp.uhdef;
+   lamptem.ihdef  = ktmp.ihdef;
+   lamptem.ug1def = ktmp.ug1def;
+   lamptem.uadef  = ktmp.uadef;
+   lamptem.iadef  = ktmp.iadef;
+   lamptem.ug2def = ktmp.ug2def;
+   lamptem.ig2def = ktmp.ig2def;
+   lamptem.sdef   = ktmp.sdef;
+   lamptem.rdef   = ktmp.rdef;
+   lamptem.kdef   = ktmp.kdef;
 }
 
 unsigned int liczug1( unsigned int pug1 )                // przelicz Ug1
@@ -415,9 +448,9 @@ ISR(INT1_vect)
             } 
             if( adr == 12 )                         // ustawianie Ih
             {
-               cwartmin = 0;
-		         cwartmax = 175;                     // 0..3.50A co 20mA
-               cwart = &lamptem.ihdef;
+               wartmin = 0;
+		         wartmax = 350;                     // 0..3.50A
+               wart = &lamptem.ihdef;
             }
             if( adr == 13 )                         // ustawianie Ua
             {
@@ -464,7 +497,7 @@ ISR(INT1_vect)
 
             if( RIGHT )
             {
-               if( adr < 13 )
+               if( adr < 12 )
 		         {
                   if( dusk0 == DMAX )
                   {
@@ -491,7 +524,7 @@ ISR(INT1_vect)
             }
             else
             {
-      	      if( adr < 13 )
+      	      if( adr < 12 )
 		         {
                   if( dusk0 == DMAX )
       	   		{
@@ -827,7 +860,7 @@ ISR(TIMER2_COMP_vect)
 	   	}
 		   if( lamptem.ihdef != 0)
    		{
-	   	   ihset = lamptem.ihdef * 2;               // *20mA -> *10mA
+	   	   ihset = lamptem.ihdef;
   		   	uhset = lamptem.uhdef = 0;
    		}
       }
@@ -1174,13 +1207,15 @@ int main(void)
 //***** Pobieranie nowej Nazwy ************************************
          if( typ < FLAMP )
      	   {
-            memcpy_P((void*)&lamptem, &lamprom[typ], sizeof(katalog));
+            memcpy_P((void*)&ktmp, &lamprom[typ], sizeof(katalog));
+            kat2ram();
 		   	tuh = (lamptem.nazwa[8] - '0') * 240;    // 240 = 1min
      	   	for( i = 0; i < 9; i++ ) buf[i+3] = (unsigned char)lamptem.nazwa[i];
   	   	}
          else
   		   {
-            EEPROM_READ(&lampeep[typ-FLAMP], lamptem);
+            EEPROM_READ(&lampeep[typ-FLAMP], ktmp);
+            kat2ram();
 	   	   tuh = (lamptem.nazwa[8] - 27) * 240;     // 240 = 1min
      		 	for( i = 0; i < 9; i++ ) buf[i+3] = pgm_read_byte(&AZ[(unsigned char)lamptem.nazwa[i]]);
          }
@@ -1290,7 +1325,7 @@ int main(void)
 		{
 		   if( dusk0 == DMAX )
 		   {
-   		   licz = lamptem.ihdef * 2;               // *20mA -> *10mA
+   		   licz = lamptem.ihdef;
    		   zapisz = 1;
 		   }
          if( (nodus == DMIN) && (adr == 12) && (zapisz == 1) )
@@ -1298,12 +1333,14 @@ int main(void)
   		 	   zapisz = 0;
             if( typ == 0 )                           // SUPPLY
 				{
-				   ihset = lamptem.ihdef * 2;               // *20mA -> *10mA
+				   ihset = lamptem.ihdef;
 					uhset = lamptem.uhdef = 0;
 				}
   				if( typ >= FLAMP )                        // ELAMP
 				{
-   		      EEPROM_WRITE(&lampeep[typ-FLAMP].ihdef, lamptem.ihdef);
+   		      if( lamptem.ihdef > 250 ) lamptem.ihdef = 250; // w EEPROM bajt: max 2.5A
+   		      ktmp.ihdef = (unsigned char)lamptem.ihdef;
+   		      EEPROM_WRITE(&lampeep[typ-FLAMP].ihdef, ktmp.ihdef);
 				}
 			}
 		}
