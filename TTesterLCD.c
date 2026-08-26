@@ -415,7 +415,7 @@ ISR(INT1_vect)
             if( (adr > 0) && (adr < 7) )                 // edycja nazwy
             {
                cwartmin = 0;
-		         cwartmax = 62;                    // A..Z _ 0..9 a..z
+		         cwartmax = 56;                    // A..Z _ 0..9 t
                cwart = &lamptem.nazwa[adr-1];
             }
             if( adr == 7 )              // zmiana nr podstawki zarzenia
@@ -503,7 +503,7 @@ ISR(INT1_vect)
 		         {
                   if( dusk0 == DMAX )
                   {
-            	      if( (*cwart) < cwartmax ) { (*cwart)++; } else { if( adr == 0 ) { (*cwart) = 0; } }
+            	      if( (*cwart) < cwartmax ) { (*cwart)++; if( (adr > 0) && (adr < 7) && ((*cwart) == 37) ) { (*cwart) = 56; } } else { if( adr == 0 ) { (*cwart) = 0; } } // nazwa: po '9' pomin a..s, od razu 't'
 	               }
            		}
              	else
@@ -530,7 +530,7 @@ ISR(INT1_vect)
 		         {
                   if( dusk0 == DMAX )
       	   		{
-		               if( (*cwart) > cwartmin ) { (*cwart)--; } else { if( adr == 0 ) { (*cwart) = (FLAMP+ELAMP-1); } }
+		               if( (*cwart) > cwartmin ) { (*cwart)--; if( (adr > 0) && (adr < 7) && ((*cwart) == 55) ) { (*cwart) = 36; } } else { if( adr == 0 ) { (*cwart) = (FLAMP+ELAMP-1); } } // nazwa: z 't' wroc na '9'
    			      }
       	   	}
 		         else
